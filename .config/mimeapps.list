@@ -1,0 +1,7 @@
+[Default Applications]
+application/vnd.cups-pdf=org.pwmt.zathura.desktop
+application/pdf=org.pwmt.zathura.desktop
+application/vnd.sealedmedia.softseal.pdf=org.pwmt.zathura.desktop
+text/x-tex=nvim.desktop
+text/x-csrs=nvim.desktop
+image/jpeg=sxiv.desktop
