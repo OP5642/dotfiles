@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# CPU_USAGE=$(top -b -n2 -p 1 | fgrep "Cpu(s)" | tail -1 | awk -F'id,' -v prefix="$prefix" '{ split($1, vs, ","); v=vs[length(vs)]; sub("%", "", v); printf "%s%.1f%%\n", prefix, 100 - v }')
+# echo "$[100-$(vmstat 1 2|tail -1|awk '{print $15}')]"%
+
+
+top -bn 1 | awk '/^%Cpu/ {printf "%.f%%\n", $2+$4+$6}'
+
