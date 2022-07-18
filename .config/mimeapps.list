@@ -5,3 +5,4 @@ application/vnd.sealedmedia.softseal.pdf=org.pwmt.zathura.desktop
 text/x-tex=nvim.desktop
 text/x-csrs=nvim.desktop
 image/jpeg=sxiv.desktop
+image/png=sxiv.desktop
