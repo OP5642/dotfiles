@@ -143,3 +143,7 @@ compinit
 
 # To add support for TTYs this line can be optionally added.
 # source ~/.cache/wal/colors-tty.sh
+#
+
+#Startsx automatically
+[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx
