@@ -36,8 +36,11 @@ set render-loading-fg           "#ebdbb2" # fg
 # Recolor book content's color
 set recolor-lightcolor          "#282828" # bg
 set recolor-darkcolor           "#ebdbb2" # fg
- set recolor                     true
+set recolor                     true
 #  set recolor-keephue             true      # keep original color
+#  set recolor-lightcolor "rgba(36, 40, 59, 0.6)"    # sets the transparency
+
+
 
 # Enable copy to clipboard
 set selection-clipboard clipboard
@@ -47,3 +50,4 @@ set selection-clipboard clipboard
 
 # Disable gui options, eg. statusbar
 set guioptions none
+set statusbar-page-percent true

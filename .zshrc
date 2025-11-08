@@ -1,6 +1,7 @@
 # If you come from bash you might have to change your $PATH.
 export PATH="/home/ognjen/.local/bin:$PATH"
 export TEXMFHOME='~/.config/texmf'
+export MOZ_ENABLE_WAYLAND=1
 
 #History settings
 HISTSIZE=10000
@@ -143,3 +144,12 @@ compinit
 
 # To add support for TTYs this line can be optionally added.
 # source ~/.cache/wal/colors-tty.sh
+#
+
+# Startsx automatically
+[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx
+
+# Load keyboard settings script
+
+usrs
+

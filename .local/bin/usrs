@@ -1,0 +1,4 @@
+#!/bin/sh
+
+setxkbmap -layout us,rs,rs -variant ,latinyz, -option grp:win_space_toggle
+

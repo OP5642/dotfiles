@@ -1,0 +1,12 @@
+#!/bin/bash
+# A Simple bash script to dowdnload playlists via yt-dlp in a given format
+
+OPT=$1
+DW=$2
+
+if [ $OPT = '-u' ]; then
+	yt-dlp -f m4a $DW -o "%(title)s.%(ext)s"
+else
+	yt-dlp -f m4a "ytsearch:$1" -o "%(title)s.%(ext)s"
+fi
+#TODO add more options, maybe save as ...

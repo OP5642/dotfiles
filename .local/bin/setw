@@ -1,0 +1,7 @@
+#!/bin/sh
+
+F=$1
+
+wal -i $F
+xwallpaper --stretch "$(< "${HOME}/.cache/wal/wal")"    
+xdotool keydown alt key F5; xdotool keyup alt
