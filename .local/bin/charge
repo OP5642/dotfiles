@@ -1,0 +1,24 @@
+#!/bin/sudo bash
+# A simple script to turn charging on/off
+
+LOC=/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+
+if grep -q '0' "$LOC"; then
+	echo "Laptop is currently charging.";
+	echo "Do you wish to stop?(y/n)" 
+	read c 
+	if [ $c = 'y' ]; then
+		echo Charging stopped. 
+		echo 1 > $LOC 
+		exit
+	fi
+else
+	echo "Laptop is currently NOT charging.";
+	echo "Do you wish to start?(y/n)" 
+	read c
+	if [ $c = 'y' ]; then
+		echo 0 > $LOC
+		echo Charging started.
+		exit
+	fi
+fi
