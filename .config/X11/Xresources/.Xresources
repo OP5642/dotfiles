@@ -1,3 +1,5 @@
+!! Scales font size for higher resolution displays
+Xft.dpi: 130
 ! urxvt
 URxvt*buffered: true
 URxvt*cursorBlink: true
