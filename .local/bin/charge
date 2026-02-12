@@ -1,24 +1,104 @@
 #!/bin/sudo bash
-# A simple script to turn charging on/off
+# Usage: charge <stop_percentage>
+#   charge <stop_percentage>
+#   charge -i        (show current thresholds)
+#   charge -h        (help)
+# Example: charge 50  -> stop=50, start=45
 
-LOC=/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+STOP="$1"
 
-if grep -q '0' "$LOC"; then
-	echo "Laptop is currently charging.";
-	echo "Do you wish to stop?(y/n)" 
-	read c 
-	if [ $c = 'y' ]; then
-		echo Charging stopped. 
-		echo 1 > $LOC 
-		exit
-	fi
-else
-	echo "Laptop is currently NOT charging.";
-	echo "Do you wish to start?(y/n)" 
-	read c
-	if [ $c = 'y' ]; then
-		echo 0 > $LOC
-		echo Charging started.
-		exit
-	fi
+BAT="/sys/class/power_supply/BAT0"
+STOP_FILE="$BAT/charge_stop_threshold"
+START_FILE="$BAT/charge_start_threshold"
+
+# --- info mode ---
+if [[ "$1" == "-i" ]]; then
+    if [[ ! -r "$STOP_FILE" || ! -r "$START_FILE" ]]; then
+        echo "Error: cannot read battery threshold files"
+        exit 1
+    fi
+
+    STOP=$(cat "$STOP_FILE")
+    START=$(cat "$START_FILE")
+
+    echo "Current charging thresholds:"
+    echo "  Start: $START%"
+    echo "  Stop : $STOP%"
+    exit 0
 fi
+
+# --- help ---
+if [[ "$1" == "-h" || "$1" == "--help" || -z "$1" ]]; then
+    echo "Usage:"
+    echo "  charge <stop_percentage>"
+    echo "    Sets stop to <x> and start to <x-5>"
+    echo
+    echo "  charge -i"
+    echo "    Show current charging thresholds"
+    echo
+    echo "  charge -h"
+    echo "    Show this help"
+    exit 0
+fi
+
+# --- sanity checks ---
+if [[ -z "$STOP" ]]; then
+    echo "Usage: charge <stop_percentage>"
+    exit 1
+fi
+
+if ! [[ "$STOP" =~ ^[0-9]+$ ]]; then
+    echo "Error: percentage must be a number"
+    exit 1
+fi
+
+if (( STOP < 10 || STOP > 100 )); then
+    echo "Error: stop percentage must be between 10 and 100"
+    exit 1
+fi
+
+if [[ ! -w "$STOP_FILE" || ! -w "$START_FILE" ]]; then
+    echo "Error: battery threshold files not writable"
+    echo "Are you running as root?"
+    exit 1
+fi
+
+START=$((STOP - 5))
+if (( START < 0 )); then
+    START=0
+fi
+
+# --- apply thresholds ---
+echo "$START" > "$START_FILE"
+echo "$STOP"  > "$STOP_FILE"
+
+echo "Charging thresholds set:"
+echo "  Start: $START%"
+echo "  Stop : $STOP%"
+#
+# Old script
+# 
+##!/bin/sudo bash
+## A simple script to turn charging on/off
+#
+#LOC=/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode
+#
+#if grep -q '0' "$LOC"; then
+#	echo "Laptop is currently charging.";
+#	echo "Do you wish to stop?(y/n)" 
+#	read c 
+#	if [ $c = 'y' ]; then
+#		echo Charging stopped. 
+#		echo 1 > $LOC 
+#		exit
+#	fi
+#else
+#	echo "Laptop is currently NOT charging.";
+#	echo "Do you wish to start?(y/n)" 
+#	read c
+#	if [ $c = 'y' ]; then
+#		echo 0 > $LOC
+#		echo Charging started.
+#		exit
+#	fi
+#fi
