@@ -1,21 +1,27 @@
-#Basic configuration
+# Basic configuration
 
-set preview true
+#set preview true
 set drawbox true
 set icons true
 set ignorecase true
 
-#Basic functions
+set ifs "\n"
+set filesep "\n"
 
+
+# Basic functions
+
+set previewer pv
 cmd trash %set -f; mv $fx ~/.trash
 
 map DD trash 
 
-#Basic movement
+# Basic movement
 
 map gf cd ~/Documents/Fakultet/
+map br $vimv $fx
 
-#cmd open ${{
+# cmd open ${{
     #trap 'sleep 0.01' EXIT
     #case $(file --mime-type "$(readlink -f $f)" -b) in
     #application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) localc $fx ;;
