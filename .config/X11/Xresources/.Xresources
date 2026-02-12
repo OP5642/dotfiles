@@ -1,10 +1,10 @@
 !! Scales font size for higher resolution displays
-Xft.dpi: 130
+Xft.dpi: 192
 ! urxvt
 URxvt*buffered: true
 URxvt*cursorBlink: true
 URxvt*underlineColor: yellow
-URxvt*font:  xft:SauceCodePro Nerd Font Mono:style=Medium:pixelsize=24:antialias=true
+URxvt*font:  xft:SauceCodePro Nerd Font Mono:style=Medium:pixelsize=35:antialias=true
 URxvt*depth: 32
 URxvt*borderless: 1
 URxvt*scrollBar: false
@@ -37,8 +37,7 @@ URxvt*termName: rxvt-unicode
 #define S_base03        #002b36
 #define S_base02        #2d2926
 #define S_base01        #90ee90
-#define S_base00        #657b83
-#define S_base0         #839496
+#define S_base00        #657b83 #define S_base0         #839496
 #define S_base1         #000000
 #define S_base2         #eee8d5
 #define S_base3         #fdf6e3
@@ -101,8 +100,10 @@ URxvt*termName: rxvt-unicode
 !*.color14:    #9AEDFE
 !*.color7:     #BFBFBF
 URxvt.perl-lib: /usr/lib/urxvt/perl
-URxvt.perl-ext-common: default,matcher,url-select,keyboard-select 
+URxvt.perl-ext-common: default, matcher, url-select, keyboard-select, font-size 
 URxvt.keysym.M-Escape: perl:keyboard-select:activate
+URxvt.keysym.C-plus:  font-size:increase
+URxvt.keysym.C-minus: font-size:decrease
 URxvt.urlLauncher: qutebrowser
 URxvt.matcher.button: 1
 URxvt.transparent: true 
