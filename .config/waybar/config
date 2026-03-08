@@ -1,0 +1,109 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 36,
+    "spacing": 4,
+    "margin-top": 6,
+    "margin-left": 10,
+    "margin-right": 10,
+
+    "modules-left": [
+        "hyprland/workspaces",
+        "hyprland/window"
+    ],
+
+    "modules-center": ["clock"],
+    "modules-right": [
+        "cpu",
+        "temperature",
+        "memory",
+        "pulseaudio",
+        "network#wifi",
+        "network#speed",
+        "battery"
+    ],
+
+    "hyprland/workspaces": {
+        "format": "{icon}",
+        "sort-by-number": true,
+        "on-click": "activate",
+        "format-icons": {
+            "1": "\uf120",
+            "2": "",
+            "3": "\ue28a",
+            "4": "󰿈",
+            "5": "",
+            "6": "\uf001",
+            "7": "󰛤"
+        }
+    },
+
+    "hyprland/window": {
+        "format": "{}",
+        "separate-outputs": true,
+        "max-length": 60
+    },
+
+    "clock": {
+        "format": "{:%Y/%m/%d %A  %H:%M}",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
+    },
+
+    "cpu": {
+        "format": "󰻠 {usage}%",
+        "interval": 2,
+        "tooltip": false
+    },
+
+    "temperature": {
+        "format": "{temperatureC}°C",
+        "hwmon-path": "/sys/class/thermal/thermal_zone0/temp",
+        "critical-threshold": 80,
+        "interval": 2,
+        "tooltip": false
+    },
+
+    "memory": {
+        "format": "󰍛 {used:0.1f}G",
+        "interval": 2,
+        "tooltip-format": "{used:0.1f}G / {total:0.1f}G"
+    },
+
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": "󰝟 muted",
+        "format-icons": {
+            "default": ["󰕿", "󰖀", "󰕾"]
+        },
+        "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+        "scroll-step": 5
+    },
+
+    "network#wifi": {
+        "interface": "wl*",
+        "format-wifi": "󰤨 {essid}",
+        "format-disconnected": "󰤭 disconnected",
+        "format-ethernet": "󰈀 ethernet",
+        "tooltip-format": "{ifname}: {ipaddr}\nSignal: {signalStrength}%"
+    },
+
+    "network#speed": {
+        "interface": "wl*",
+        "format": "󰁆 {bandwidthDownBytes}  󰁞 {bandwidthUpBytes}",
+        "interval": 2,
+        "tooltip": false
+    },
+
+    "battery": {
+        "format": "{icon} {capacity}%",
+        "format-charging": "󰂄 {capacity}%",
+        "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "tooltip-format": "{timeTo}"
+    }
+}
+
+
