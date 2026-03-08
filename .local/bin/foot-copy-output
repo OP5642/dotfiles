@@ -1,0 +1,11 @@
+#!/bin/zsh
+wl-copy
+wl-paste | grep "^\[$(whoami)" | sed 's/.*\$ //' > /tmp/foot-commands
+selected=$(foot --app-id fuzzy-picker -e sh -c 'fzf --multi --tac < /tmp/foot-commands > /tmp/foot-selected; echo done')
+cat /tmp/foot-selected | while read cmd; do
+    wl-paste | awk -v cmd="$cmd" -v prompt="$(whoami)@$(hostname)" '
+        $0 ~ prompt".*\\$ "cmd"$" { found=1; print; next }
+        found && $0 ~ prompt { exit }
+        found { print }
+    '
+done | wl-copy
