@@ -1,0 +1,70 @@
+#!/bin/bash
+
+set -e
+
+MOUNT_POINT="/mnt/sdcard"
+DEST="$HOME/Pictures/Camera"
+
+echo "Available block devices:"
+echo "------------------------"
+lsblk
+echo "------------------------"
+echo
+
+# Detect SD card partitions
+mapfile -t SD_CANDIDATES < <(lsblk -lnpo NAME | grep -E '/dev/mmcblk.*p1')
+
+if [ "${#SD_CANDIDATES[@]}" -eq 0 ]; then
+    echo "No SD cards detected."
+    exit 1
+fi
+
+echo "Detected SD card(s):"
+for i in "${!SD_CANDIDATES[@]}"; do
+    printf "  [%d] %s\n" "$((i+1))" "${SD_CANDIDATES[$i]}"
+done
+echo
+
+read -rp "Select SD card [1]: " SELECTION
+SELECTION=${SELECTION:-1}
+
+INDEX=$((SELECTION-1))
+
+if ! [[ "$INDEX" =~ ^[0-9]+$ ]] || [ "$INDEX" -lt 0 ] || [ "$INDEX" -ge "${#SD_CANDIDATES[@]}" ]; then
+    echo "Invalid selection."
+    exit 1
+fi
+
+SD_DEV="${SD_CANDIDATES[$INDEX]}"
+
+echo
+read -rp "Sync DCIM from $SD_DEV to $DEST? [Y/n]: " CONFIRM
+CONFIRM=${CONFIRM:-Y}
+
+if [[ "$CONFIRM" =~ ^[Nn]$ ]]; then
+    echo "Aborted."
+    exit 0
+fi
+
+sudo mkdir -p "$MOUNT_POINT"
+
+echo "Mounting $SD_DEV..."
+sudo mount "$SD_DEV" "$MOUNT_POINT"
+
+if [ ! -d "$MOUNT_POINT/DCIM" ]; then
+    echo "Error: DCIM folder not found."
+    sudo umount "$MOUNT_POINT"
+    exit 1
+fi
+
+echo "Syncing DCIM..."
+rsync -av --ignore-existing \
+    "$MOUNT_POINT/DCIM/" \
+    "$DEST/"
+
+echo "Unmounting..."
+sudo umount -R "$MOUNT_POINT"
+echo $MOUNT_POINT
+
+echo "Done"
+
