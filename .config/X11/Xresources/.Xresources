@@ -99,6 +99,8 @@ URxvt*termName: rxvt-unicode
 !*.color6:     #8BE9FD
 !*.color14:    #9AEDFE
 !*.color7:     #BFBFBF
+
+*.alpha: 0.80
 URxvt.perl-lib: /usr/lib/urxvt/perl
 URxvt.perl-ext-common: default, matcher, url-select, keyboard-select, font-size 
 URxvt.keysym.M-Escape: perl:keyboard-select:activate

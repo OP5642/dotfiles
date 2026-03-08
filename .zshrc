@@ -147,9 +147,9 @@ compinit
 #
 
 # Startsx automatically
-[[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx
+# [[ -z $DISPLAY && $XDG_VTNR -eq 1 ]] && exec startx
 
 # Load keyboard settings script
 
-usrs
+# usrs
 
