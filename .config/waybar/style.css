@@ -13,7 +13,14 @@ window#waybar {
 }
 
 .modules-left,
-.modules-center,
+.modules-center{
+    background: @background;
+    border-radius: 12px;
+    padding: 0 8px;
+    margin: 0 4px;
+}
+
+
 .modules-right {
     background: @background;
     border-radius: 12px;

@@ -19,7 +19,6 @@
         "memory",
         "pulseaudio",
         "network#wifi",
-        "network#speed",
         "battery"
     ],
 
@@ -84,7 +83,8 @@
         "format-wifi": "󰤨 {essid}",
         "format-disconnected": "󰤭 disconnected",
         "format-ethernet": "󰈀 ethernet",
-        "tooltip-format": "{ifname}: {ipaddr}\nSignal: {signalStrength}%"
+        "interval": 2,
+        "tooltip-format": "{ifname}: {ipaddr}\nSignal: {signalStrength}%\n󰁆 {bandwidthDownBytes}  󰁞 {bandwidthUpBytes}"
     },
 
     "network#speed": {
