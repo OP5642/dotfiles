@@ -7,7 +7,7 @@
 
 STOP="$1"
 
-BAT="/sys/class/power_supply/BAT0"
+BAT="/sys/class/power_supply/BAT1"
 STOP_FILE="$BAT/charge_stop_threshold"
 START_FILE="$BAT/charge_start_threshold"
 
