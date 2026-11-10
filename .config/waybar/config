@@ -8,7 +8,7 @@
     "margin-right": 10,
 
     "modules-left": [
-        "hyprland/workspaces",
+        "ext/workspaces",
         "hyprland/window"
     ],
 
@@ -22,9 +22,9 @@
         "battery"
     ],
 
-    "hyprland/workspaces": {
+    "ext/workspaces": {
         "format": "{icon}",
-        "sort-by-number": true,
+        "sort-by-name": true,
         "on-click": "activate",
         "format-icons": {
             "1": "\uf120",

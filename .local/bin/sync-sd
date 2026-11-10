@@ -4,6 +4,22 @@ set -e
 
 MOUNT_POINT="/mnt/sdcard"
 DEST="$HOME/Pictures/Camera"
+MOUNTED_BY_US=0
+
+cleanup() {
+    if [ "$MOUNTED_BY_US" -eq 1 ]; then
+        echo "Unmounting..."
+        sudo umount -R "$MOUNT_POINT"
+        MOUNTED_BY_US=0
+    fi
+}
+trap cleanup EXIT
+
+# Single-value lsblk query, whitespace trimmed: field <dev> <column>
+field() {
+    lsblk -dnpo "$2" "$1" 2>/dev/null \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
 
 echo "Available block devices:"
 echo "------------------------"
@@ -11,31 +27,112 @@ lsblk
 echo "------------------------"
 echo
 
-# Detect SD card partitions
-mapfile -t SD_CANDIDATES < <(lsblk -lnpo NAME | grep -E '/dev/mmcblk.*p1')
+# ---------------------------------------------------------------------------
+# Find external storage.
+#
+# A built-in SD slot shows up as /dev/mmcblk*, but an external USB card reader
+# appears as a plain SCSI disk (/dev/sd*) instead, so match on "is this
+# removable/hotplug/USB" rather than on the device name. A multi-slot reader
+# exposes one disk per slot; empty slots have no media (size 0B, no
+# filesystem) and get filtered out below.
+# ---------------------------------------------------------------------------
+EXTERNAL_DISKS=()
 
-if [ "${#SD_CANDIDATES[@]}" -eq 0 ]; then
-    echo "No SD cards detected."
+while IFS= read -r DISK; do
+    [ -n "$DISK" ] || continue
+    case "$DISK" in
+        /dev/mmcblk*) EXTERNAL_DISKS+=("$DISK"); continue ;;
+    esac
+    RM=$(field "$DISK" RM)
+    HOTPLUG=$(field "$DISK" HOTPLUG)
+    TRAN=$(field "$DISK" TRAN)
+    if [ "$RM" = "1" ] || [ "$HOTPLUG" = "1" ] || [ "$TRAN" = "usb" ]; then
+        EXTERNAL_DISKS+=("$DISK")
+    fi
+done < <(lsblk -dnpo NAME)
+
+# Collect every usable filesystem on those disks: partitions normally, or the
+# whole disk when a card is formatted without a partition table.
+CAND_DEV=()
+CAND_LABEL=()
+CAND_MNT=()
+
+for DISK in "${EXTERNAL_DISKS[@]}"; do
+    while IFS= read -r DEV; do
+        [ -n "$DEV" ] || continue
+
+        FSTYPE=$(field "$DEV" FSTYPE)
+        [ -n "$FSTYPE" ] || continue          # no media / no filesystem
+        [ "$FSTYPE" != "swap" ] || continue
+
+        TYPE=$(field "$DEV" TYPE)
+        SIZE=$(field "$DEV" SIZE)
+        [ "$SIZE" != "0B" ] || continue       # empty reader slot
+
+        # A disk is only a candidate itself if it holds the filesystem
+        # directly (no partitions of its own).
+        if [ "$TYPE" = "disk" ] && [ "$(lsblk -lnpo NAME "$DEV" | grep -c .)" -gt 1 ]; then
+            continue
+        fi
+
+        MNT=$(findmnt -nro TARGET --source "$DEV" 2>/dev/null | head -n1 || true)
+        case "$MNT" in
+            /|/boot|/boot/*|/home|/usr|/var) continue ;;   # never touch system mounts
+        esac
+
+        LABEL=$(field "$DEV" LABEL)
+        CAND_DEV+=("$DEV")
+        CAND_LABEL+=("$SIZE $FSTYPE${LABEL:+ \"$LABEL\"}")
+        CAND_MNT+=("$MNT")
+    done < <(lsblk -lnpo NAME "$DISK")
+done
+
+if [ "${#CAND_DEV[@]}" -eq 0 ]; then
+    echo "No external storage with a readable filesystem detected."
     exit 1
 fi
 
-echo "Detected SD card(s):"
-for i in "${!SD_CANDIDATES[@]}"; do
-    printf "  [%d] %s\n" "$((i+1))" "${SD_CANDIDATES[$i]}"
+# ---------------------------------------------------------------------------
+# Pick the default: the built-in SD slot (/dev/mmcblk*p1) if it is present,
+# otherwise the sole external device if there is exactly one. With several
+# external devices and no built-in card, require an explicit choice.
+# ---------------------------------------------------------------------------
+DEFAULT_INDEX=-1
+for i in "${!CAND_DEV[@]}"; do
+    case "${CAND_DEV[$i]}" in
+        /dev/mmcblk*p1) DEFAULT_INDEX=$i; break ;;
+    esac
+done
+if [ "$DEFAULT_INDEX" -lt 0 ] && [ "${#CAND_DEV[@]}" -eq 1 ]; then
+    DEFAULT_INDEX=0
+fi
+
+echo "Detected external storage:"
+for i in "${!CAND_DEV[@]}"; do
+    LINE=$(printf "  [%d] %s  (%s)" "$((i+1))" "${CAND_DEV[$i]}" "${CAND_LABEL[$i]}")
+    [ -z "${CAND_MNT[$i]}" ] || LINE="$LINE  mounted at ${CAND_MNT[$i]}"
+    [ "$i" -ne "$DEFAULT_INDEX" ] || LINE="$LINE  <- default"
+    echo "$LINE"
 done
 echo
 
-read -rp "Select SD card [1]: " SELECTION
-SELECTION=${SELECTION:-1}
+if [ "$DEFAULT_INDEX" -ge 0 ]; then
+    read -rp "Select device [$((DEFAULT_INDEX+1))]: " SELECTION
+    SELECTION=${SELECTION:-$((DEFAULT_INDEX+1))}
+else
+    echo "Several external devices found and no built-in SD card; pick one."
+    read -rp "Select device [1-${#CAND_DEV[@]}]: " SELECTION
+fi
 
 INDEX=$((SELECTION-1))
 
-if ! [[ "$INDEX" =~ ^[0-9]+$ ]] || [ "$INDEX" -lt 0 ] || [ "$INDEX" -ge "${#SD_CANDIDATES[@]}" ]; then
+if ! [[ "$SELECTION" =~ ^[0-9]+$ ]] || [ "$INDEX" -lt 0 ] || [ "$INDEX" -ge "${#CAND_DEV[@]}" ]; then
     echo "Invalid selection."
     exit 1
 fi
 
-SD_DEV="${SD_CANDIDATES[$INDEX]}"
+SD_DEV="${CAND_DEV[$INDEX]}"
+SD_MNT="${CAND_MNT[$INDEX]}"
 
 echo
 read -rp "Sync DCIM from $SD_DEV to $DEST? [Y/n]: " CONFIRM
@@ -46,25 +143,162 @@ if [[ "$CONFIRM" =~ ^[Nn]$ ]]; then
     exit 0
 fi
 
-sudo mkdir -p "$MOUNT_POINT"
-
-echo "Mounting $SD_DEV..."
-sudo mount "$SD_DEV" "$MOUNT_POINT"
+# An external reader is usually auto-mounted already (udisks); reuse that
+# mountpoint and leave it exactly as we found it.
+if [ -n "$SD_MNT" ]; then
+    echo "Already mounted at $SD_MNT; using it."
+    MOUNT_POINT="$SD_MNT"
+else
+    sudo mkdir -p "$MOUNT_POINT"
+    echo "Mounting $SD_DEV..."
+    sudo mount "$SD_DEV" "$MOUNT_POINT"
+    MOUNTED_BY_US=1
+fi
 
 if [ ! -d "$MOUNT_POINT/DCIM" ]; then
     echo "Error: DCIM folder not found."
-    sudo umount "$MOUNT_POINT"
     exit 1
 fi
 
-echo "Syncing DCIM..."
-rsync -av --ignore-existing \
-    "$MOUNT_POINT/DCIM/" \
-    "$DEST/"
+# ---------------------------------------------------------------------------
+# Progress reporting. Driven by bytes, not file count: a card mixing 3 MB
+# stills with multi-GB clips would make a file-count bar lurch.
+# ---------------------------------------------------------------------------
+if [ -t 1 ]; then HAVE_TTY=1; else HAVE_TTY=0; fi
+LAST_DECILE=-1
 
-echo "Unmounting..."
-sudo umount -R "$MOUNT_POINT"
-echo $MOUNT_POINT
+human() {
+    if command -v numfmt >/dev/null 2>&1; then
+        numfmt --to=iec --suffix=B "$1"
+    else
+        echo "${1}B"
+    fi
+    return 0
+}
+
+clock() {
+    local s=$1
+    printf '%d:%02d' "$((s / 60))" "$((s % 60))"
+    return 0
+}
+
+# progress <files_done> <files_total> <bytes_done> <bytes_total> <start_epoch>
+progress() {
+    local fd=$1 ft=$2 bd=$3 bt=$4 start=$5
+    local pct=0 elapsed rate eta cols barw filled bar pad
+
+    if [ "$bt" -gt 0 ]; then
+        pct=$((bd * 100 / bt))
+    fi
+
+    elapsed=$(($(date +%s) - start))
+    eta=""
+    if [ "$elapsed" -gt 0 ] && [ "$bd" -gt 0 ] && [ "$bd" -lt "$bt" ]; then
+        rate=$((bd / elapsed))
+        if [ "$rate" -gt 0 ]; then
+            eta="  ETA $(clock $(((bt - bd) / rate)))"
+        fi
+    fi
+
+    if [ "$HAVE_TTY" -eq 1 ]; then
+        cols=$(tput cols 2>/dev/null || echo 80)
+        barw=$((cols - 46))
+        if [ "$barw" -lt 10 ]; then barw=10; fi
+        if [ "$barw" -gt 40 ]; then barw=40; fi
+        filled=$((pct * barw / 100))
+        bar=$(printf '%*s' "$filled" '' | tr ' ' '#')
+        pad=$(printf '%*s' "$((barw - filled))" '')
+        printf '\r\033[K[%s%s] %3d%%  %d/%d  %s/%s%s' \
+            "$bar" "$pad" "$pct" "$fd" "$ft" \
+            "$(human "$bd")" "$(human "$bt")" "$eta"
+    else
+        # Piped or logged: one line per 10% instead of a redrawn bar.
+        if [ "$((pct / 10))" -ne "$LAST_DECILE" ]; then
+            LAST_DECILE=$((pct / 10))
+            printf '  %3d%%  %d/%d files  %s/%s%s\n' \
+                "$pct" "$fd" "$ft" "$(human "$bd")" "$(human "$bt")" "$eta"
+        fi
+    fi
+    return 0
+}
+
+# Clear the progress line before printing a normal message over it.
+msg() {
+    if [ "$HAVE_TTY" -eq 1 ]; then printf '\r\033[K'; fi
+    echo "$@"
+    return 0
+}
+
+echo "Scanning DCIM..."
+TOTAL_FILES=0
+TOTAL_BYTES=0
+while IFS= read -r -d '' SZ; do
+    TOTAL_FILES=$((TOTAL_FILES + 1))
+    TOTAL_BYTES=$((TOTAL_BYTES + SZ))
+done < <(find "$MOUNT_POINT/DCIM" -type f -printf '%s\0')
+
+if [ "$TOTAL_FILES" -eq 0 ]; then
+    echo "DCIM contains no files; nothing to import."
+    exit 0
+fi
+
+echo "Found $TOTAL_FILES files ($(human "$TOTAL_BYTES")). Importing by date..."
+
+IMPORTED=0
+SKIPPED=0
+COLLISIONS=0
+DONE_FILES=0
+DONE_BYTES=0
+START_EPOCH=$(date +%s)
+
+progress 0 "$TOTAL_FILES" 0 "$TOTAL_BYTES" "$START_EPOCH"
+
+while IFS= read -r -d '' SRC; do
+    # Folder is based on the file's date (capture time for camera files).
+    DATE=$(date -r "$SRC" +%Y-%m-%d)
+    TARGET_DIR="$DEST/$DATE"
+    mkdir -p "$TARGET_DIR"
+
+    BASE=$(basename "$SRC")
+    TARGET="$TARGET_DIR/$BASE"
+    SIZE_BYTES=$(stat -c %s "$SRC" 2>/dev/null || echo 0)
+
+    if [ ! -e "$TARGET" ]; then
+        # New name for this date: import it.
+        cp -p "$SRC" "$TARGET"
+        IMPORTED=$((IMPORTED + 1))
+    elif cmp -s "$SRC" "$TARGET"; then
+        # Byte-for-byte identical: already imported, nothing to do.
+        SKIPPED=$((SKIPPED + 1))
+    else
+        # Same name + same date but DIFFERENT photo: never overwrite,
+        # copy alongside with a numeric suffix so nothing is lost.
+        if [[ "$BASE" == *.* ]]; then
+            NAME="${BASE%.*}"
+            EXT=".${BASE##*.}"
+        else
+            NAME="$BASE"
+            EXT=""
+        fi
+        N=1
+        while [ -e "$TARGET_DIR/${NAME}_$N$EXT" ]; do
+            N=$((N + 1))
+        done
+        cp -p "$SRC" "$TARGET_DIR/${NAME}_$N$EXT"
+        msg "  collision: $BASE -> ${NAME}_$N$EXT (in $DATE)"
+        COLLISIONS=$((COLLISIONS + 1))
+    fi
+
+    DONE_FILES=$((DONE_FILES + 1))
+    DONE_BYTES=$((DONE_BYTES + SIZE_BYTES))
+    progress "$DONE_FILES" "$TOTAL_FILES" "$DONE_BYTES" "$TOTAL_BYTES" "$START_EPOCH"
+done < <(find "$MOUNT_POINT/DCIM" -type f -print0)
+
+if [ "$HAVE_TTY" -eq 1 ]; then printf '\n'; fi
+
+echo
+echo "Imported: $IMPORTED   Already present (skipped): $SKIPPED   Collisions kept: $COLLISIONS   Elapsed: $(clock $(($(date +%s) - START_EPOCH)))"
+
+cleanup
 
 echo "Done"
-
